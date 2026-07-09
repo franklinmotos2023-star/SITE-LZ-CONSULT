@@ -1,0 +1,6 @@
+{
+  "name": "LZ Consult",
+  "description": "Consultoria de marketing para você. Apresentação e portfólio completo.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
