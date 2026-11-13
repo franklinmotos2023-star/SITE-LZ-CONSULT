@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from "react";
 import * as THREE from "three";
 import { RoomEnvironment } from "three/addons/environments/RoomEnvironment.js";
+import { motion } from "motion/react";
 
 interface StickmanWave3DProps {
   onSelectCases?: () => void;
@@ -8,9 +9,12 @@ interface StickmanWave3DProps {
 }
 
 /**
- * Three.js Half-Body Waving Stick Figure ("Bonequinho Stick")
- * Appears on the side of the screen (waist-up / meio corpo) waving hello ("dando tchauzinho")
- * with a speech bubble that says: "CASES NO FINAL DA PÁGINA!"
+ * High-Craft 3D Snoopy-Inspired Beagle Character in Three.js
+ * - Oriented front-facing ("de frente") with direct eye contact toward the user.
+ * - Emerges laterally from the right border of the page showing his upper torso,
+ *   collar, front-facing head & snout, symmetrical floppy black ears, and waving paw.
+ * - Accompanied by a compact speech bubble ("balão de fala") announcing the Cases at the end of the page.
+ * - Only appears in the first section (activeStage === 0) and disappears when scrolling down.
  */
 export const StickmanWave3D: React.FC<StickmanWave3DProps> = ({
   onSelectCases,
@@ -19,6 +23,8 @@ export const StickmanWave3D: React.FC<StickmanWave3DProps> = ({
   const canvasMountRef = useRef<HTMLDivElement | null>(null);
   const waveBoostRef = useRef<number>(0);
   const [isHovered, setIsHovered] = useState(false);
+
+  const isVisible = activeStage === 0;
 
   useEffect(() => {
     const container = canvasMountRef.current;
@@ -36,15 +42,15 @@ export const StickmanWave3D: React.FC<StickmanWave3DProps> = ({
       return /SwiftShader|llvmpipe|softpipe|Software|Basic Render/i.test(gpu);
     })();
 
-    const width = 150;
-    const height = 190;
+    const width = 195;
+    const height = 235;
 
     const scene = new THREE.Scene();
 
-    // Camera framing the upper body ("meio corpo") from waist to raised waving hand
-    const camera = new THREE.PerspectiveCamera(34, width / height, 0.1, 50);
-    camera.position.set(0, 1.35, 5.2);
-    camera.lookAt(0, 1.25, 0);
+    // Camera positioned straight in front for direct eye contact with the user
+    const camera = new THREE.PerspectiveCamera(32, width / height, 0.1, 50);
+    camera.position.set(0, 1.32, 5.3);
+    camera.lookAt(0.08, 1.24, 0);
 
     const renderer = new THREE.WebGLRenderer({
       antialias: !isSoftwareGl,
@@ -53,7 +59,7 @@ export const StickmanWave3D: React.FC<StickmanWave3DProps> = ({
     });
     renderer.outputColorSpace = THREE.SRGBColorSpace;
     renderer.toneMapping = THREE.ACESFilmicToneMapping;
-    renderer.toneMappingExposure = 1.1;
+    renderer.toneMappingExposure = 1.12;
     renderer.setPixelRatio(
       isSoftwareGl ? 1 : Math.min(window.devicePixelRatio, 2),
     );
@@ -63,7 +69,7 @@ export const StickmanWave3D: React.FC<StickmanWave3DProps> = ({
     container.innerHTML = "";
     container.appendChild(renderer.domElement);
 
-    // 2. Studio Environment Map for crisp specular highlights on the black stick figure
+    // 2. Studio Environment Reflection Map
     const pmremGenerator = new THREE.PMREMGenerator(renderer);
     const envTexture = pmremGenerator.fromScene(
       new RoomEnvironment(),
@@ -72,199 +78,286 @@ export const StickmanWave3D: React.FC<StickmanWave3DProps> = ({
     scene.environment = envTexture;
     pmremGenerator.dispose();
 
-    // 3. Balanced 3-Point Studio Lighting Rig
-    const hemiLight = new THREE.HemisphereLight(0xffffff, 0xd4d4d8, 1.2);
+    // 3. Studio 3-Point Lighting Rig
+    const hemiLight = new THREE.HemisphereLight(0xffffff, 0xcbd5e1, 1.1);
     scene.add(hemiLight);
 
-    const keyLight = new THREE.DirectionalLight(0xfffaf0, 2.2);
-    keyLight.position.set(3, 5, 4);
+    const keyLight = new THREE.DirectionalLight(0xfffcf5, 2.15);
+    keyLight.position.set(-3.2, 4.8, 4.8);
     scene.add(keyLight);
 
-    const rimLight = new THREE.DirectionalLight(0xffffff, 1.6);
-    rimLight.position.set(-3, 3, -3);
+    const rimLight = new THREE.DirectionalLight(0xe2e8f0, 1.75);
+    rimLight.position.set(3.2, 3.0, -2.8);
     scene.add(rimLight);
 
-    // 4. PBR Materials (varied roughness/metalness across silhouette parts)
-    const bodyMat = new THREE.MeshStandardMaterial({
-      color: 0x0a0a0a,
-      roughness: 0.22,
-      metalness: 0.15,
+    const bottomBounce = new THREE.DirectionalLight(0xd4d4d8, 0.65);
+    bottomBounce.position.set(0, -4, 2.5);
+    scene.add(bottomBounce);
+
+    // 4. Sculptural PBR Materials
+    const whiteFurMat = new THREE.MeshPhysicalMaterial({
+      color: 0xfafaf9,
+      roughness: 0.35,
+      metalness: 0.02,
+      clearcoat: 0.25,
+      clearcoatRoughness: 0.35,
+      sheen: 0.4,
+      sheenColor: new THREE.Color(0xe4e4e7),
     });
 
-    const jointMat = new THREE.MeshStandardMaterial({
-      color: 0x1f1f1f,
-      roughness: 0.48,
-      metalness: 0.35,
+    const blackVelvetMat = new THREE.MeshStandardMaterial({
+      color: 0x09090b,
+      roughness: 0.3,
+      metalness: 0.08,
     });
 
-    const eyeWhiteMat = new THREE.MeshStandardMaterial({
-      color: 0xffffff,
-      roughness: 0.1,
-      metalness: 0.0,
-    });
-
-    const pupilMat = new THREE.MeshStandardMaterial({
-      color: 0x000000,
+    const glossyNoseMat = new THREE.MeshPhysicalMaterial({
+      color: 0x050505,
       roughness: 0.05,
       metalness: 0.1,
+      clearcoat: 1.0,
+      clearcoatRoughness: 0.04,
     });
 
-    // 5. Composite 12-Part Procedural 3D Stick Figure (Waist-Up / Meio Corpo)
-    const characterRoot = new THREE.Group();
-    // Position character slightly toward the right side of the canvas, leaning playfully inward
-    characterRoot.position.set(0.18, 0.0, 0);
-    characterRoot.rotation.y = -0.22;
-    characterRoot.rotation.z = 0.08;
-    scene.add(characterRoot);
+    const collarMat = new THREE.MeshStandardMaterial({
+      color: 0x18181b,
+      roughness: 0.28,
+      metalness: 0.25,
+    });
 
-    // Waist base ring (clean half-body cut-off collar at bottom)
-    const waistRingGeo = new THREE.TorusGeometry(0.2, 0.045, 12, 24);
-    waistRingGeo.rotateX(Math.PI / 2);
-    const waistRing = new THREE.Mesh(waistRingGeo, jointMat);
-    waistRing.position.set(0, 0.12, 0);
-    characterRoot.add(waistRing);
+    const chromeTagMat = new THREE.MeshStandardMaterial({
+      color: 0xf4f4f5,
+      roughness: 0.12,
+      metalness: 0.92,
+    });
 
-    // Upper Torso / Spine
+    const eyeHighlightMat = new THREE.MeshBasicMaterial({
+      color: 0xffffff,
+    });
+
+    // ============================================================
+    // 5. FRONT-FACING SNOOPY-INSPIRED 3D BEAGLE MODEL
+    // Torso leans in from the right edge of the page while the head
+    // faces straight forward ("de frente") with direct eye contact.
+    // ============================================================
+    const dogRoot = new THREE.Group();
+    dogRoot.position.set(0.56, 0.2, 0);
+    dogRoot.rotation.z = 0.36; // Torso angles out from the right screen border
+    dogRoot.rotation.y = 0.0; // Facing directly toward the user
+    scene.add(dogRoot);
+
+    // --- A. UPPER TORSO / CHEST ---
     const torsoGroup = new THREE.Group();
-    torsoGroup.position.set(0, 0.12, 0);
-    characterRoot.add(torsoGroup);
+    dogRoot.add(torsoGroup);
 
-    const spineGeo = new THREE.CapsuleGeometry(0.13, 0.88, 12, 24);
-    const spineMesh = new THREE.Mesh(spineGeo, bodyMat);
-    spineMesh.position.set(0, 0.52, 0);
-    torsoGroup.add(spineMesh);
+    const chestGeo = new THREE.CapsuleGeometry(0.35, 0.66, 20, 32);
+    const chestMesh = new THREE.Mesh(chestGeo, whiteFurMat);
+    chestMesh.position.set(0, 0.52, 0);
+    chestMesh.scale.set(0.96, 1.0, 0.88);
+    torsoGroup.add(chestMesh);
 
-    // Chest / Collarbone Bar
-    const collarGeo = new THREE.CapsuleGeometry(0.085, 0.62, 10, 20);
-    collarGeo.rotateZ(Math.PI / 2);
-    const collarMesh = new THREE.Mesh(collarGeo, jointMat);
-    collarMesh.position.set(0, 0.92, 0);
-    torsoGroup.add(collarMesh);
+    // Snoopy's classic black spot patch on the side of his torso
+    const spotGeo = new THREE.SphereGeometry(0.22, 24, 24);
+    spotGeo.scale(0.65, 1.15, 0.55);
+    const spotMesh = new THREE.Mesh(spotGeo, blackVelvetMat);
+    spotMesh.position.set(0.26, 0.55, 0.05);
+    spotMesh.rotation.z = -0.15;
+    torsoGroup.add(spotMesh);
 
     // Neck
-    const neckGeo = new THREE.CylinderGeometry(0.075, 0.09, 0.24, 16);
-    const neckMesh = new THREE.Mesh(neckGeo, jointMat);
-    neckMesh.position.set(0, 1.08, 0);
+    const neckGeo = new THREE.CylinderGeometry(0.19, 0.24, 0.26, 24);
+    const neckMesh = new THREE.Mesh(neckGeo, whiteFurMat);
+    neckMesh.position.set(0, 0.97, 0.02);
     torsoGroup.add(neckMesh);
 
-    // Head Group
+    // Classic Dog Collar + Front-Facing Chrome Tag
+    const collarGeo = new THREE.TorusGeometry(0.225, 0.05, 16, 32);
+    collarGeo.rotateX(Math.PI / 2);
+    const collarMesh = new THREE.Mesh(collarGeo, collarMat);
+    collarMesh.position.set(0, 0.95, 0.02);
+    torsoGroup.add(collarMesh);
+
+    const tagGeo = new THREE.CylinderGeometry(0.068, 0.068, 0.024, 20);
+    tagGeo.rotateX(Math.PI / 2);
+    const tagMesh = new THREE.Mesh(tagGeo, chromeTagMat);
+    tagMesh.position.set(0, 0.88, 0.26);
+    torsoGroup.add(tagMesh);
+
+    // --- B. HEAD & FRONT-FACING SNOUT (Direct Eye Contact) ---
     const headPivot = new THREE.Group();
-    headPivot.position.set(0, 1.48, 0);
+    headPivot.position.set(-0.04, 1.38, 0.08);
+    // Counter-tilt the head so it stays upright and looks straight into the user's eyes
+    headPivot.rotation.z = -0.28;
     torsoGroup.add(headPivot);
 
-    const headGeo = new THREE.SphereGeometry(0.36, 32, 32);
-    const headMesh = new THREE.Mesh(headGeo, bodyMat);
-    headPivot.add(headMesh);
+    // Rounded cranium dome
+    const craniumGeo = new THREE.SphereGeometry(0.42, 32, 32);
+    craniumGeo.scale(0.98, 1.02, 0.94);
+    const craniumMesh = new THREE.Mesh(craniumGeo, whiteFurMat);
+    headPivot.add(craniumMesh);
 
-    // Expressive Eyes Group (for blinking)
+    // Front-facing Beagle Snout (jutting toward the camera)
+    const snoutGroup = new THREE.Group();
+    snoutGroup.position.set(0, -0.08, 0.32);
+    snoutGroup.rotation.x = 0.05;
+    headPivot.add(snoutGroup);
+
+    const snoutBridgeGeo = new THREE.CapsuleGeometry(0.23, 0.26, 20, 32);
+    snoutBridgeGeo.rotateX(Math.PI / 2);
+    const snoutBridgeMesh = new THREE.Mesh(snoutBridgeGeo, whiteFurMat);
+    snoutBridgeMesh.scale.set(1.06, 0.86, 1.0);
+    snoutGroup.add(snoutBridgeMesh);
+
+    const snoutTipGeo = new THREE.SphereGeometry(0.24, 28, 28);
+    snoutTipGeo.scale(1.08, 0.88, 0.95);
+    const snoutTipMesh = new THREE.Mesh(snoutTipGeo, whiteFurMat);
+    snoutTipMesh.position.set(0, 0.0, 0.14);
+    snoutGroup.add(snoutTipMesh);
+
+    // Glossy Black Oval Nose centered on the tip of the snout
+    const noseGeo = new THREE.SphereGeometry(0.11, 24, 24);
+    noseGeo.scale(1.22, 0.84, 0.9);
+    const noseMesh = new THREE.Mesh(noseGeo, glossyNoseMat);
+    noseMesh.position.set(0, 0.05, 0.35);
+    snoutGroup.add(noseMesh);
+
+    // Front-facing friendly smile underneath the snout
+    const smileGeo = new THREE.TorusGeometry(0.135, 0.016, 10, 24, Math.PI * 0.72);
+    const smileMesh = new THREE.Mesh(smileGeo, blackVelvetMat);
+    smileMesh.position.set(0, -0.085, 0.24);
+    smileMesh.rotation.z = Math.PI * 1.14;
+    smileMesh.rotation.x = -0.25;
+    snoutGroup.add(smileMesh);
+
+    // --- C. DIRECT EYE CONTACT EYES & BROWS ---
     const eyesGroup = new THREE.Group();
     headPivot.add(eyesGroup);
 
-    const eyeGeo = new THREE.SphereGeometry(0.065, 16, 16);
-    eyeGeo.scale(1, 1.25, 0.6);
+    const eyeGeo = new THREE.SphereGeometry(0.058, 20, 20);
+    eyeGeo.scale(0.92, 1.32, 0.6);
 
-    const leftEye = new THREE.Mesh(eyeGeo, eyeWhiteMat);
-    leftEye.position.set(-0.12, 0.06, 0.31);
+    // Left eye (looking directly at camera)
+    const leftEye = new THREE.Mesh(eyeGeo, blackVelvetMat);
+    leftEye.position.set(-0.145, 0.13, 0.38);
     eyesGroup.add(leftEye);
 
-    const rightEye = new THREE.Mesh(eyeGeo, eyeWhiteMat);
-    rightEye.position.set(0.12, 0.06, 0.31);
+    // Right eye (looking directly at camera)
+    const rightEye = new THREE.Mesh(eyeGeo, blackVelvetMat);
+    rightEye.position.set(0.145, 0.13, 0.38);
     eyesGroup.add(rightEye);
 
-    const pupilGeo = new THREE.SphereGeometry(0.032, 12, 12);
-    const leftPupil = new THREE.Mesh(pupilGeo, pupilMat);
-    leftPupil.position.set(-0.12, 0.06, 0.35);
-    eyesGroup.add(leftPupil);
+    // Bright white eye catchlights for unmistakable eye contact
+    const specGeo = new THREE.SphereGeometry(0.019, 12, 12);
+    const leftEyeSpec = new THREE.Mesh(specGeo, eyeHighlightMat);
+    leftEyeSpec.position.set(-0.13, 0.155, 0.415);
+    eyesGroup.add(leftEyeSpec);
 
-    const rightPupil = new THREE.Mesh(pupilGeo, pupilMat);
-    rightPupil.position.set(0.12, 0.06, 0.35);
-    eyesGroup.add(rightPupil);
+    const rightEyeSpec = new THREE.Mesh(specGeo, eyeHighlightMat);
+    rightEyeSpec.position.set(0.16, 0.155, 0.415);
+    eyesGroup.add(rightEyeSpec);
 
-    // Happy Smile Arc
-    const smileGeo = new THREE.TorusGeometry(0.11, 0.022, 10, 24, Math.PI * 0.75);
-    const smileMesh = new THREE.Mesh(smileGeo, eyeWhiteMat);
-    smileMesh.position.set(0, -0.04, 0.325);
-    smileMesh.rotation.z = Math.PI * 1.125;
-    headPivot.add(smileMesh);
+    // Symmetrical expressive eyebrows
+    const browGeo = new THREE.TorusGeometry(0.068, 0.015, 8, 16, Math.PI * 0.65);
+    const leftBrow = new THREE.Mesh(browGeo, blackVelvetMat);
+    leftBrow.position.set(-0.15, 0.25, 0.35);
+    leftBrow.rotation.z = 0.28;
+    headPivot.add(leftBrow);
 
-    // ============================================================
-    // LEFT ARM (Waving arm on viewer's left / character's right side)
-    // ============================================================
+    const rightBrow = new THREE.Mesh(browGeo, blackVelvetMat);
+    rightBrow.position.set(0.15, 0.25, 0.35);
+    rightBrow.rotation.z = 0.12;
+    headPivot.add(rightBrow);
+
+    // --- D. SYMMETRICAL FLOPPY BLACK BEAGLE EARS ---
+    const earGeo = new THREE.CapsuleGeometry(0.135, 0.46, 16, 24);
+    earGeo.scale(0.52, 1.0, 0.85);
+
+    const earTipGeo = new THREE.SphereGeometry(0.15, 20, 20);
+    earTipGeo.scale(0.55, 1.1, 0.88);
+
+    // Left Ear (viewer's left side of head)
+    const leftEarPivot = new THREE.Group();
+    leftEarPivot.position.set(-0.37, 0.08, 0.02);
+    headPivot.add(leftEarPivot);
+
+    const leftEarMesh = new THREE.Mesh(earGeo, blackVelvetMat);
+    leftEarMesh.position.set(-0.05, -0.32, 0.0);
+    leftEarMesh.rotation.z = -0.16;
+    leftEarPivot.add(leftEarMesh);
+
+    const leftEarTip = new THREE.Mesh(earTipGeo, blackVelvetMat);
+    leftEarTip.position.set(-0.08, -0.52, 0.0);
+    leftEarPivot.add(leftEarTip);
+
+    // Right Ear (viewer's right side of head)
+    const rightEarPivot = new THREE.Group();
+    rightEarPivot.position.set(0.37, 0.08, 0.02);
+    headPivot.add(rightEarPivot);
+
+    const rightEarMesh = new THREE.Mesh(earGeo, blackVelvetMat);
+    rightEarMesh.position.set(0.05, -0.32, 0.0);
+    rightEarMesh.rotation.z = 0.16;
+    rightEarPivot.add(rightEarMesh);
+
+    const rightEarTip = new THREE.Mesh(earTipGeo, blackVelvetMat);
+    rightEarTip.position.set(0.08, -0.52, 0.0);
+    rightEarPivot.add(rightEarTip);
+
+    // --- E. WAVING PAW (Raised on viewer's left, waving directly at user) ---
     const waveShoulderPivot = new THREE.Group();
-    waveShoulderPivot.position.set(-0.36, 0.92, 0);
+    waveShoulderPivot.position.set(-0.32, 0.78, 0.14);
     torsoGroup.add(waveShoulderPivot);
 
-    const shoulderSphereGeo = new THREE.SphereGeometry(0.11, 16, 16);
-    const leftShoulderBall = new THREE.Mesh(shoulderSphereGeo, jointMat);
-    waveShoulderPivot.add(leftShoulderBall);
+    const armGeo = new THREE.CapsuleGeometry(0.095, 0.34, 14, 20);
+    const upperArmMesh = new THREE.Mesh(armGeo, whiteFurMat);
+    upperArmMesh.position.set(-0.18, 0.12, 0.04);
+    upperArmMesh.rotation.z = Math.PI * 0.36;
+    waveShoulderPivot.add(upperArmMesh);
 
-    const upperArmGeo = new THREE.CapsuleGeometry(0.075, 0.42, 10, 18);
-    const waveUpperArm = new THREE.Mesh(upperArmGeo, bodyMat);
-    waveUpperArm.position.set(-0.18, 0.16, 0);
-    waveUpperArm.rotation.z = Math.PI * 0.32;
-    waveShoulderPivot.add(waveUpperArm);
-
-    // Elbow Pivot for energetic waving ("dando tchauzinho")
     const waveElbowPivot = new THREE.Group();
-    waveElbowPivot.position.set(-0.36, 0.31, 0);
+    waveElbowPivot.position.set(-0.34, 0.24, 0.08);
     waveShoulderPivot.add(waveElbowPivot);
 
-    const elbowBall = new THREE.Mesh(
-      new THREE.SphereGeometry(0.085, 16, 16),
-      jointMat,
-    );
-    waveElbowPivot.add(elbowBall);
+    const forearmGeo = new THREE.CapsuleGeometry(0.09, 0.32, 14, 20);
+    const forearmMesh = new THREE.Mesh(forearmGeo, whiteFurMat);
+    forearmMesh.position.set(0, 0.17, 0);
+    waveElbowPivot.add(forearmMesh);
 
-    const forearmGeo = new THREE.CapsuleGeometry(0.068, 0.42, 10, 18);
-    const waveForearm = new THREE.Mesh(forearmGeo, bodyMat);
-    waveForearm.position.set(0, 0.24, 0);
-    waveElbowPivot.add(waveForearm);
+    // Front-facing Waving Paw + 3 Black Toe Marks
+    const pawPivot = new THREE.Group();
+    pawPivot.position.set(0, 0.38, 0);
+    waveElbowPivot.add(pawPivot);
 
-    // Hand + Fingers at top of waving forearm
-    const handPivot = new THREE.Group();
-    handPivot.position.set(0, 0.5, 0);
-    waveElbowPivot.add(handPivot);
+    const pawGeo = new THREE.SphereGeometry(0.13, 20, 20);
+    pawGeo.scale(1.12, 1.18, 0.76);
+    const pawMesh = new THREE.Mesh(pawGeo, whiteFurMat);
+    pawPivot.add(pawMesh);
 
-    const palmGeo = new THREE.SphereGeometry(0.105, 16, 16);
-    palmGeo.scale(1.1, 1.15, 0.65);
-    const palmMesh = new THREE.Mesh(palmGeo, bodyMat);
-    handPivot.add(palmMesh);
-
-    const fingerGeo = new THREE.CapsuleGeometry(0.024, 0.1, 6, 10);
-    [-0.055, 0, 0.055].forEach((fx, i) => {
-      const finger = new THREE.Mesh(fingerGeo, bodyMat);
-      finger.position.set(fx, 0.11, 0);
-      finger.rotation.z = (i - 1) * -0.15;
-      handPivot.add(finger);
+    const toeMarkGeo = new THREE.CapsuleGeometry(0.012, 0.068, 6, 10);
+    [-0.042, 0, 0.042].forEach((tx) => {
+      const toeMark = new THREE.Mesh(toeMarkGeo, blackVelvetMat);
+      toeMark.position.set(tx, 0.075, 0.092);
+      pawPivot.add(toeMark);
     });
 
-    const thumb = new THREE.Mesh(fingerGeo, bodyMat);
-    thumb.position.set(0.1, 0.02, 0);
-    thumb.rotation.z = -0.75;
-    handPivot.add(thumb);
+    // --- F. SECOND PAW (Resting at the front of the chest) ---
+    const restPawGroup = new THREE.Group();
+    restPawGroup.position.set(0.18, 0.42, 0.32);
+    torsoGroup.add(restPawGroup);
 
-    // ============================================================
-    // OTHER ARM (Resting casually on hip)
-    // ============================================================
-    const restShoulderPivot = new THREE.Group();
-    restShoulderPivot.position.set(0.36, 0.92, 0);
-    torsoGroup.add(restShoulderPivot);
+    const restPawMesh = new THREE.Mesh(pawGeo, whiteFurMat);
+    restPawMesh.rotation.x = 0.35;
+    restPawMesh.rotation.z = -0.15;
+    restPawGroup.add(restPawMesh);
 
-    const rightShoulderBall = new THREE.Mesh(shoulderSphereGeo, jointMat);
-    restShoulderPivot.add(rightShoulderBall);
+    [-0.042, 0, 0.042].forEach((tx) => {
+      const toeMark = new THREE.Mesh(toeMarkGeo, blackVelvetMat);
+      toeMark.position.set(tx, 0.05, 0.1);
+      toeMark.rotation.x = 0.35;
+      restPawGroup.add(toeMark);
+    });
 
-    const restUpperArm = new THREE.Mesh(upperArmGeo, bodyMat);
-    restUpperArm.position.set(0.14, -0.18, 0);
-    restUpperArm.rotation.z = 0.55;
-    restShoulderPivot.add(restUpperArm);
-
-    const restForearm = new THREE.Mesh(forearmGeo, bodyMat);
-    restForearm.position.set(0.16, -0.45, 0.08);
-    restForearm.rotation.z = -0.48;
-    restForearm.rotation.x = -0.25;
-    restShoulderPivot.add(restForearm);
-
-    // Pre-warm shaders on hardware WebGL
+    // Pre-warm shaders on hardware GPU
     if (!isSoftwareGl) {
       renderer.compile(scene, camera);
     }
@@ -300,7 +393,6 @@ export const StickmanWave3D: React.FC<StickmanWave3DProps> = ({
       const delta = Math.min(clock.getDelta(), 0.1);
       const elapsed = clock.getElapsedTime();
 
-      // Decay interactive wave speed boost smoothly
       waveBoostRef.current = THREE.MathUtils.damp(
         waveBoostRef.current,
         0,
@@ -308,24 +400,32 @@ export const StickmanWave3D: React.FC<StickmanWave3DProps> = ({
         delta,
       );
 
-      const waveSpeed = 6.8 + waveBoostRef.current * 6.0;
-      const waveAngle = Math.sin(elapsed * waveSpeed) * 0.52;
+      const waveSpeed = 6.4 + waveBoostRef.current * 5.5;
+      const waveSwing = Math.sin(elapsed * waveSpeed) * 0.46;
 
-      // Waving forearm & hand ("dando tchauzinho")
-      waveElbowPivot.rotation.z = 0.25 + waveAngle;
-      handPivot.rotation.z = Math.sin(elapsed * waveSpeed - 0.6) * 0.28;
-      waveShoulderPivot.rotation.z = Math.sin(elapsed * 3.4) * 0.08;
+      // Energetic paw wave
+      waveElbowPivot.rotation.z = 0.18 + waveSwing;
+      pawPivot.rotation.z = Math.sin(elapsed * waveSpeed - 0.5) * 0.24;
+      waveShoulderPivot.rotation.z = Math.sin(elapsed * 3.2) * 0.07;
 
-      // Friendly head bob & torso breathing sway
-      headPivot.rotation.z = Math.sin(elapsed * 3.4) * 0.09;
-      headPivot.rotation.y = 0.15 + Math.cos(elapsed * 2.2) * 0.12;
-      torsoGroup.rotation.z = Math.sin(elapsed * 2.5) * 0.04;
-      characterRoot.position.y = Math.sin(elapsed * 3.4) * 0.04;
+      // Keep head facing straight at the user with gentle friendly nod/tilt
+      headPivot.rotation.z = -0.28 + Math.sin(elapsed * 3.2) * 0.06;
+      headPivot.rotation.y = Math.sin(elapsed * 2.0) * 0.05;
+      headPivot.position.y = 1.38 + Math.sin(elapsed * 3.2) * 0.022;
 
-      // Natural eye blink every ~3.8 seconds
-      const blinkCycle = elapsed % 3.8;
+      // Symmetrical floppy ears swinging softly
+      leftEarPivot.rotation.z =
+        -0.06 + Math.sin(elapsed * 3.2 - 0.6) * 0.09 + waveSwing * 0.05;
+      rightEarPivot.rotation.z =
+        0.06 + Math.sin(elapsed * 3.2 - 0.6) * 0.09;
+
+      // Subtle breathing motion from the screen border
+      dogRoot.position.x = 0.56 + Math.sin(elapsed * 2.4) * 0.025;
+
+      // Natural eye blink every ~3.6 seconds
+      const blinkCycle = elapsed % 3.6;
       const blinkScale =
-        blinkCycle > 3.62 && blinkCycle < 3.76 ? 0.08 : 1.0;
+        blinkCycle > 3.44 && blinkCycle < 3.58 ? 0.08 : 1.0;
       eyesGroup.scale.y = blinkScale;
 
       renderer.render(scene, camera);
@@ -344,78 +444,94 @@ export const StickmanWave3D: React.FC<StickmanWave3DProps> = ({
       cancelAnimationFrame(frameId);
       clearTimeout(frameId);
       envTexture.dispose();
-      waistRingGeo.dispose();
-      spineGeo.dispose();
-      collarGeo.dispose();
+      chestGeo.dispose();
+      spotGeo.dispose();
       neckGeo.dispose();
-      headGeo.dispose();
-      eyeGeo.dispose();
-      pupilGeo.dispose();
+      collarGeo.dispose();
+      tagGeo.dispose();
+      craniumGeo.dispose();
+      snoutBridgeGeo.dispose();
+      snoutTipGeo.dispose();
+      noseGeo.dispose();
       smileGeo.dispose();
-      shoulderSphereGeo.dispose();
-      upperArmGeo.dispose();
+      eyeGeo.dispose();
+      specGeo.dispose();
+      browGeo.dispose();
+      earGeo.dispose();
+      earTipGeo.dispose();
+      armGeo.dispose();
       forearmGeo.dispose();
-      palmGeo.dispose();
-      fingerGeo.dispose();
-      bodyMat.dispose();
-      jointMat.dispose();
-      eyeWhiteMat.dispose();
-      pupilMat.dispose();
+      pawGeo.dispose();
+      toeMarkGeo.dispose();
+      whiteFurMat.dispose();
+      blackVelvetMat.dispose();
+      glossyNoseMat.dispose();
+      collarMat.dispose();
+      chromeTagMat.dispose();
+      eyeHighlightMat.dispose();
       renderer.dispose();
     };
   }, []);
 
   const handleInteraction = () => {
-    waveBoostRef.current = 1.5;
+    waveBoostRef.current = 1.6;
     if (onSelectCases) {
       onSelectCases();
     }
   };
 
   return (
-    <div
+    <motion.div
+      initial={{ x: 180, opacity: 0 }}
+      animate={{
+        x: isVisible ? 0 : 280,
+        opacity: isVisible ? 1 : 0,
+      }}
+      transition={{ duration: 0.6, ease: [0.16, 1, 0.3, 1] }}
+      style={{ pointerEvents: isVisible ? "auto" : "none" }}
       onMouseEnter={() => {
         setIsHovered(true);
-        waveBoostRef.current = 1.2;
+        waveBoostRef.current = 1.25;
       }}
       onMouseLeave={() => setIsHovered(false)}
       onClick={handleInteraction}
       role="button"
-      tabIndex={0}
+      tabIndex={isVisible ? 0 : -1}
+      aria-hidden={!isVisible}
       onKeyDown={(e) => {
         if (e.key === "Enter" || e.key === " ") {
           e.preventDefault();
           handleInteraction();
         }
       }}
-      aria-label="Bonequinho Stick 3D: Cases no final da página"
-      className="fixed right-0 bottom-6 sm:bottom-10 z-30 flex items-center select-none cursor-pointer group"
+      aria-label="Mascote 3D avisando sobre os Cases no final da página"
+      className="fixed right-0 bottom-4 sm:bottom-8 z-30 flex items-center select-none cursor-pointer group overflow-hidden pr-0"
     >
-      {/* Speech Bubble ("Balão") pointing to the waving stickman */}
+      {/* Compact Comic-Style Speech Bubble ("Balão de fala reduzido") */}
       <div
-        className={`relative mr-[-12px] mb-12 sm:mb-14 bg-white text-black border-2 border-black rounded-2xl px-3.5 py-2.5 shadow-[5px_5px_0px_0px_#000000] transition-transform duration-200 ${
-          isHovered ? "-translate-y-1 scale-[1.03]" : ""
+        className={`relative mr-[-14px] mb-12 sm:mb-14 bg-white text-black border-[1.5px] border-black rounded-xl px-2.5 py-1.5 shadow-[3px_3px_0px_0px_#000000] transition-transform duration-200 ${
+          isHovered ? "-translate-y-0.5 scale-[1.03]" : ""
         }`}
       >
-        <p className="font-display font-black text-[11px] sm:text-xs tracking-tight uppercase leading-tight whitespace-nowrap">
+        <p className="font-display font-black text-[9px] sm:text-[10px] tracking-tight uppercase leading-tight whitespace-nowrap">
           CASES NO FINAL DA PÁGINA!
         </p>
-        <span className="block font-mono text-[9px] text-neutral-500 font-bold mt-0.5 whitespace-nowrap">
-          {activeStage === 2 ? "Você chegou nos cases!" : "Clique ou role para ver ↓"}
+        <span className="block font-mono text-[8px] text-neutral-500 font-semibold mt-0.5 whitespace-nowrap">
+          Clique ou role ↓
         </span>
 
-        {/* Speech Bubble Triangle Pointer Tail on the right side */}
+        {/* Compact Speech Bubble Tail pointing to the dog */}
         <div
           aria-hidden="true"
-          className="absolute top-1/2 -right-2.5 -translate-y-1/2 w-4 h-4 bg-white border-t-2 border-r-2 border-black rotate-45"
+          className="absolute top-1/2 -right-1.5 -translate-y-1/2 w-2.5 h-2.5 bg-white border-t-[1.5px] border-r-[1.5px] border-black rotate-45"
         />
       </div>
 
-      {/* Three.js Canvas Mount (Half-body Stickman peeking from the right edge) */}
+      {/* Three.js Canvas: Front-facing 3D Beagle emerging from the right screen border */}
       <div
         ref={canvasMountRef}
-        className="w-[125px] h-[160px] sm:w-[150px] sm:h-[190px] mr-[-10px] pointer-events-none shrink-0"
+        className="w-[160px] h-[190px] sm:w-[195px] sm:h-[235px] mr-[-26px] pointer-events-none shrink-0"
       />
-    </div>
+    </motion.div>
   );
 };
